@@ -26,7 +26,7 @@ FairTraj is a density-aware generative data augmentation method for fairness in 
 │       └── utils/
 │           ├── ema.py
 │           ├── quadtree.py
-│           └── trajectory.py
+│           └── utils.py
 ├── LICENSE
 ├── requirements.txt
 └── pyproject.toml

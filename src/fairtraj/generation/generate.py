@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from fairtraj.models.ddpm import Guide_UNet
 from fairtraj.training.train_ddpm import load_config
-from fairtraj.utils.trajectory import p_xt, resample_trajectory
+from fairtraj.utils.utils import p_xt, resample_trajectory
 
 
 def load_pickle(path):

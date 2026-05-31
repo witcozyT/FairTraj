@@ -27,7 +27,7 @@ from tqdm import tqdm
 from fairtraj.models.dwgat import eval as eval_dwgat
 from fairtraj.models.dwgat import train as train_dwgat
 from fairtraj.utils.quadtree import QuadTree
-from fairtraj.utils.trajectory import divide_grids, resample_trajectory
+from fairtraj.utils.utils import divide_grids, resample_trajectory
 
 
 PORTO_BOUNDS = {
