@@ -17,9 +17,14 @@ FairTraj is a density-aware generative data augmentation method for fairness in 
 │       ├── models/
 │       │   ├── ddpm.py
 │       │   └── dwgat.py
+│       ├── generation/
+│       │   └── generate.py
 │       ├── preprocessing/
 │       │   └── density.py
+│       ├── training/
+│       │   └── train_ddpm.py
 │       └── utils/
+│           ├── ema.py
 │           ├── quadtree.py
 │           └── trajectory.py
 ├── LICENSE
@@ -45,6 +50,13 @@ geopy
 PyYAML
 ```
 
+Install the local package before running the commands below:
+
+```bash
+pip install -r requirements.txt
+pip install -e .
+```
+
 ## Data Format
 
 The core preprocessing command expects a trajectory text file with one GPS point per line:
@@ -60,9 +72,13 @@ timestamp latitude longitude
 
 Lines beginning with `-` separate trajectories. Coordinates are expected as latitude and longitude in decimal degrees.
 
-## Build FairTraj Core Artifacts
+## Workflow
 
-After preparing a trajectory text file, run:
+FairTraj contains four core stages.
+
+### 1. Estimate Trajectory Density
+
+Given raw trajectories, estimate point/trajectory density, construct the density-aware graph, train DW-GAT, and prepare DDPM tensors:
 
 ```bash
 python -m fairtraj.preprocessing.density \
@@ -80,6 +96,55 @@ This produces:
 - `graph_data.pt`: density-aware graph data
 - `dwgat.pth`: DWGAT checkpoint
 - `density_conditions.pkl`: trajectory-level density-aware condition sequences
+- `trajs.pkl`, `attrs.pkl`, `stats.pkl`: normalized DDPM training data and normalization statistics
+- `source_*_train.pkl`, `target_*_train.pkl`: density-based source/target splits for FairTraj training
+
+### 2. Learn Density-Aware Node Representations
+
+DW-GAT is implemented in:
+
+```text
+src/fairtraj/models/dwgat.py
+```
+
+The preprocessing command above trains DW-GAT to reconstruct node density and saves node embeddings as density-aware point-level conditional signals.
+
+### 3. Train Density-Aware DDPM
+
+Train the FairTraj denoising diffusion model with the prepared source/target tensors:
+
+```bash
+python -m fairtraj.training.train_ddpm \
+  --config configs/fairtraj_core.yaml \
+  --data-dir outputs/fairtraj_core \
+  --output-dir outputs/ddpm
+```
+
+This produces DDPM checkpoints such as:
+
+```text
+outputs/ddpm/models/unet_200.pt
+```
+
+### 4. Generate Augmented Trajectories
+
+Use a trained DDPM checkpoint and the low-density target conditions to synthesize augmented trajectories:
+
+```bash
+python -m fairtraj.generation.generate \
+  --config configs/fairtraj_core.yaml \
+  --data-dir outputs/fairtraj_core \
+  --attrs outputs/fairtraj_core/target_attrs_train.pkl \
+  --conditions outputs/fairtraj_core/target_conditions_train.pkl \
+  --checkpoint outputs/ddpm/models/unet_200.pt \
+  --output-dir outputs/augmented
+```
+
+This saves:
+
+```text
+outputs/augmented/augmented_trajs.pkl
+```
 
 ## Configuration
 

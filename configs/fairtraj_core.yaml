@@ -2,6 +2,7 @@ dataset:
   name: porto
   trajectory_file: data/porto/trajectories.txt
   output_dir: outputs/fairtraj_core
+  traj_length: 60
 
 spatial:
   bounds:
@@ -21,14 +22,26 @@ dwgat:
   epochs: 3000
   learning_rate: 0.002
 
-diffusion:
+model:
   in_channels: 2
-  out_channels: 2
+  out_ch: 2
   ch: 128
   cond_ch: 128
   ch_mult: [1, 2, 2, 2]
   num_res_blocks: 2
   dropout: 0.1
+  ema: true
+  ema_rate: 0.9999
+  resamp_with_conv: true
+
+diffusion:
   beta_start: 0.0001
   beta_end: 0.05
   num_diffusion_timesteps: 500
+
+training:
+  batch_size: 256
+  batches_per_epoch: 200
+  n_epochs: 200
+  learning_rate: 0.0003
+  sample_weight_temperature: 0.3
