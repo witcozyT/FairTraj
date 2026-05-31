@@ -7,13 +7,13 @@ name = "fairtraj"
 version = "0.1.0"
 description = "Core density-aware trajectory representation components for FairTraj."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = "==3.8.*"
 dependencies = [
   "numpy",
   "pandas",
   "scipy",
   "scikit-learn",
-  "torch",
+  "torch>=1.7",
   "torch-geometric",
   "matplotlib",
   "tqdm",

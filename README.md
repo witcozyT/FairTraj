@@ -22,10 +22,6 @@ FairTraj is a density-aware generative data augmentation method for fairness in 
 │       └── utils/
 │           ├── quadtree.py
 │           └── trajectory.py
-├── data/
-│   └── README.md
-├── checkpoints/
-│   └── README.md
 ├── LICENSE
 ├── requirements.txt
 └── pyproject.toml
@@ -36,7 +32,7 @@ FairTraj is a density-aware generative data augmentation method for fairness in 
 You can install the required packages in your python environment by:
 
 ```text
-python>=3.8
+Python == 3.8
 torch>=1.7
 pandas
 numpy
