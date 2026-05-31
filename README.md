@@ -103,10 +103,6 @@ If you use this code, please cite:
 }
 ```
 
-ACM reference format:
-
-Tao Wang, Yuanyuan Yao, Yian Wei, Junhao Zhu, Hamid Alinejad Rokny, and Lu Chen. 2026. FairTraj: Density-Aware Generative Data Augmentation for Fairness in Downstream Trajectory Learning Tasks. In Proceedings of the 32nd ACM SIGKDD Conference on Knowledge Discovery and Data Mining V.2 (KDD '26), August 09-13, 2026, Jeju Island, Republic of Korea. ACM, New York, NY, USA, 10 pages. https://doi.org/10.1145/3770855.3817841
-
 ## License
 
 This project is released under the MIT License. See `LICENSE` for details.
