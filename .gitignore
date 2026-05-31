@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments
+.venv/
+venv/
+env/
+.conda/
+
+# IDE and OS
+.DS_Store
+.idea/
+.vscode/
+
+# Logs and outputs
+logs/
+runs/
+outputs/
+wandb/
+*.log
+
+# Datasets and generated artifacts
+data/**/*.pkl
+data/**/*.pt
+data/**/*.pth
+data/**/*.txt
+data/**/*.csv
+data/**/*.npy
+data/**/*.npz
+checkpoints/**/*.pt
+checkpoints/**/*.pth
+checkpoints/**/*.ckpt
+*.pkl
+*.pt
+*.pth
+*.ckpt
+
+# Notebooks and temporary files
+.ipynb_checkpoints/
+tmp/
+temp/

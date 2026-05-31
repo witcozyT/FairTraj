@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fairtraj"
+version = "0.1.0"
+description = "Core density-aware trajectory representation components for FairTraj."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+  "numpy",
+  "pandas",
+  "scipy",
+  "scikit-learn",
+  "torch",
+  "torch-geometric",
+  "matplotlib",
+  "tqdm",
+  "geopy",
+  "PyYAML",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
