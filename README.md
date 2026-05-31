@@ -99,15 +99,17 @@ This produces:
 - `trajs.pkl`, `attrs.pkl`, `stats.pkl`: normalized DDPM training data and normalization statistics
 - `source_*_train.pkl`, `target_*_train.pkl`: density-based source/target splits for FairTraj training
 
-### 2. Learn Density-Aware Node Representations
+### 2. Learn Density-Aware Node Representations with DW-GAT
 
-DW-GAT is implemented in:
+This stage is executed inside the preprocessing command in Stage 1. The DW-GAT module is not meant to be run directly as a standalone script.
+
+The implementation is in:
 
 ```text
 src/fairtraj/models/dwgat.py
 ```
 
-The preprocessing command above trains DW-GAT to reconstruct node density and saves node embeddings as density-aware point-level conditional signals.
+During Stage 1, `fairtraj.preprocessing.density` builds `graph_data.pt`, calls DW-GAT training, saves `dwgat.pth`, and uses the learned node embeddings to produce density-aware point-level conditional signals.
 
 ### 3. Train Density-Aware DDPM
 
