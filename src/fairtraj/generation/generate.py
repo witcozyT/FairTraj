@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 
 from fairtraj.models.ddpm import Guide_UNet
 from fairtraj.training.train_ddpm import load_config
@@ -19,8 +19,20 @@ def load_pickle(path):
         return pickle.load(f)
 
 
+def summarize_tensor(name, values, logger):
+    values = values.detach().cpu().float()
+    logger.info(
+        "%s stats | count=%s mean=%.6f std=%.6f min=%.6f max=%.6f",
+        name,
+        values.numel(),
+        values.mean().item(),
+        values.std(unbiased=False).item(),
+        values.min().item(),
+        values.max().item(),
+    )
+
+
 def generate(args):
-    data_dir = Path(args.data_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     logger = get_logger(__name__, output_dir / "generate.log")
@@ -30,14 +42,32 @@ def generate(args):
 
     attrs = torch.from_numpy(np.asarray(load_pickle(args.attrs))).float()
     conditions = torch.from_numpy(np.asarray(load_pickle(args.conditions))).float()
-    dataset = TensorDataset(attrs, conditions)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
+    stats = load_pickle(args.stats)
+    if len(attrs) != len(conditions):
+        raise ValueError(f"attrs and conditions must contain the same number of trajectories: {len(attrs)} != {len(conditions)}")
+    if attrs.shape[1] < 7:
+        raise ValueError("attrs must contain the density field at column index 6.")
+    if args.sample_temperature <= 0:
+        raise ValueError("--sample-temperature must be positive.")
 
-    stats = load_pickle(data_dir / "stats.pkl")
+    attr_mean = stats["attrs_mean"]
+    attr_std = stats["attrs_std"]
     coord_mean = stats["coords_mean"]
     coord_std = stats["coords_std"]
-    len_mean = stats["attrs_mean"][2]
-    len_std = stats["attrs_std"][2]
+    len_mean = attr_mean[2]
+    len_std = attr_std[2]
+
+    densities = attrs[:, 6] * attr_std[-1] + attr_mean[-1]
+    sample_weights = torch.exp(-(densities - densities.min()) / args.sample_temperature)
+    summarize_tensor("density", densities, logger)
+    summarize_tensor("sample_weight", sample_weights, logger)
+    sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=args.num_samples or len(attrs),
+        replacement=True,
+    )
+    dataset = TensorDataset(attrs, conditions)
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, sampler=sampler)
 
     model = Guide_UNet(config).to(device)
     state_dict = torch.load(args.checkpoint, map_location=device)
@@ -78,13 +108,15 @@ def generate(args):
 def main():
     parser = argparse.ArgumentParser(description="Generate FairTraj augmented trajectories.")
     parser.add_argument("--config", default="configs/fairtraj_core.yaml")
-    parser.add_argument("--data-dir", default="outputs/fairtraj_core")
+    parser.add_argument("--stats", default="outputs/fairtraj_core/stats.pkl")
     parser.add_argument("--attrs", default="outputs/fairtraj_core/attrs_pool.pkl")
     parser.add_argument("--conditions", default="outputs/fairtraj_core/conditions_pool.pkl")
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--output-dir", default="outputs/augmented")
     parser.add_argument("--output-name", default="augmented_trajs.pkl")
     parser.add_argument("--batch-size", type=int, default=2000)
+    parser.add_argument("--num-samples", type=int, default=None)
+    parser.add_argument("--sample-temperature", type=float, default=0.02)
     parser.add_argument("--timesteps", type=int, default=100)
     parser.add_argument("--eta", type=float, default=0.0)
     parser.add_argument("--device", default=None)

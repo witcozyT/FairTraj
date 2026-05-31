@@ -83,6 +83,7 @@ Given raw trajectories, estimate point/trajectory density, construct the density
 ```bash
 python -m fairtraj.preprocessing.density \
   --trajectories /path/to/trajectories.txt \
+  --pool-trajectories /path/to/heldout_trajectories.txt \
   --output-dir outputs/fairtraj_core \
   --capacity 6000 \
   --search-radius 3000 \
@@ -98,14 +99,10 @@ This produces:
 - `density_conditions.pkl`: trajectory-level density-aware condition sequences
 - `trajs.pkl`, `attrs.pkl`, `stats.pkl`: normalized DDPM training data and normalization statistics
 - `source_*_train.pkl`, `target_*_train.pkl`: density-based source/target splits for FairTraj training
+- `attrs_pool.pkl`, `conditions_pool.pkl`: held-out original trajectories prepared as generation attributes and density-aware conditions
 - `preprocessing.log`: preprocessing and DW-GAT training log
 
-For augmentation, FairTraj uses a held-out pool from the original trajectories as generation conditions. This pool is not part of the DDPM training split:
-
-- `attrs_pool.pkl`: trajectory-level attributes of held-out original trajectories
-- `conditions_pool.pkl`: point-level density-aware conditions of the same held-out trajectories
-
-These files should be prepared with the same normalization statistics and DW-GAT node embeddings used in Stage 1.
+For augmentation, FairTraj uses a held-out pool from the original trajectories as generation conditions. This pool is provided through `--pool-trajectories` and is not part of the DDPM training split. When the pool is provided, `stats.pkl` is fitted over the training and held-out trajectories together, and the pool files are prepared with the same DW-GAT node embeddings and normalization statistics as the training tensors.
 
 ### 2. Train Density-Aware DDPM
 
@@ -133,12 +130,15 @@ Use a trained DDPM checkpoint and the held-out condition pool to synthesize augm
 ```bash
 python -m fairtraj.generation.generate \
   --config configs/fairtraj_core.yaml \
-  --data-dir outputs/fairtraj_core \
+  --stats outputs/fairtraj_core/stats.pkl \
   --attrs outputs/fairtraj_core/attrs_pool.pkl \
   --conditions outputs/fairtraj_core/conditions_pool.pkl \
   --checkpoint outputs/ddpm/models/unet_200.pt \
-  --output-dir outputs/augmented
+  --output-dir outputs/augmented \
+  --sample-temperature 0.02
 ```
+
+During generation, FairTraj samples held-out pool conditions by density with a `WeightedRandomSampler`. The default probability is proportional to `exp(-density / sample_temperature)`, so lower-density trajectories are selected more often for augmentation.
 
 This saves:
 

@@ -157,10 +157,14 @@ def normalize_stats(values):
     return np.mean(values, axis=0), np.std(values, axis=0)
 
 
-def prepare_diffusion_dataset(trajectories, conditions, qdtree, output_dir, bounds, traj_length=60, target_quantile=20):
+def diffusion_arrays(trajectories, qdtree, bounds, traj_length, density_min=None, density_max=None):
     densities = np.asarray([mean_pool_density(traj, qdtree) for traj in trajectories])
-    if densities.max() > densities.min():
-        densities = (densities - densities.min()) / (densities.max() - densities.min())
+    if density_min is None:
+        density_min = densities.min()
+    if density_max is None:
+        density_max = densities.max()
+    if density_max > density_min:
+        densities = (densities - density_min) / (density_max - density_min)
 
     attrs = np.asarray(
         [calculate_trajectory_attributes(traj, density, bounds) for traj, density in zip(trajectories, densities)],
@@ -170,15 +174,62 @@ def prepare_diffusion_dataset(trajectories, conditions, qdtree, output_dir, boun
         [resample_trajectory(np.asarray([[pt[0], pt[1]] for pt in traj], dtype=np.float32), traj_length) for traj in trajectories],
         dtype=np.float32,
     )
+    return trajs, attrs, densities
 
-    attrs_mean, attrs_std = normalize_stats(attrs[:, 1:7])
+
+def prepare_diffusion_dataset(
+    trajectories,
+    conditions,
+    qdtree,
+    output_dir,
+    bounds,
+    traj_length=60,
+    target_quantile=20,
+    pool_trajectories=None,
+    pool_conditions=None,
+):
+    train_raw_densities = np.asarray([mean_pool_density(traj, qdtree) for traj in trajectories])
+    pool_raw_densities = None
+    if pool_trajectories is not None:
+        pool_raw_densities = np.asarray([mean_pool_density(traj, qdtree) for traj in pool_trajectories])
+    stats_densities = train_raw_densities if pool_raw_densities is None else np.concatenate([train_raw_densities, pool_raw_densities])
+    density_min = stats_densities.min()
+    density_max = stats_densities.max()
+    trajs, attrs, densities = diffusion_arrays(
+        trajectories,
+        qdtree,
+        bounds,
+        traj_length,
+        density_min=density_min,
+        density_max=density_max,
+    )
+
+    pool_trajs = None
+    pool_attrs = None
+    if pool_trajectories is not None:
+        pool_trajs, pool_attrs, _ = diffusion_arrays(
+            pool_trajectories,
+            qdtree,
+            bounds,
+            traj_length,
+            density_min=density_min,
+            density_max=density_max,
+        )
+
+    stats_attrs = attrs if pool_attrs is None else np.concatenate([attrs, pool_attrs], axis=0)
+    stats_trajs = trajs if pool_trajs is None else np.concatenate([trajs, pool_trajs], axis=0)
+
+    attrs_mean, attrs_std = normalize_stats(stats_attrs[:, 1:7])
     attrs_std = np.where(attrs_std == 0, 1.0, attrs_std)
-    coords_mean, coords_std = normalize_stats(trajs.reshape(-1, 2))
+    coords_mean, coords_std = normalize_stats(stats_trajs.reshape(-1, 2))
     coords_std = np.where(coords_std == 0, 1.0, coords_std)
 
     attrs_norm = attrs.copy()
     attrs_norm[:, 1:7] = (attrs_norm[:, 1:7] - attrs_mean) / attrs_std
     trajs_norm = (trajs - coords_mean) / coords_std
+    if pool_attrs is not None:
+        pool_attrs_norm = pool_attrs.copy()
+        pool_attrs_norm[:, 1:7] = (pool_attrs_norm[:, 1:7] - attrs_mean) / attrs_std
 
     output_dir = Path(output_dir)
     with (output_dir / "trajs.pkl").open("wb") as f:
@@ -210,6 +261,12 @@ def prepare_diffusion_dataset(trajectories, conditions, qdtree, output_dir, boun
     for name, value in split_items.items():
         with (output_dir / name).open("wb") as f:
             pickle.dump(value, f)
+
+    if pool_attrs is not None and pool_conditions is not None:
+        with (output_dir / "attrs_pool.pkl").open("wb") as f:
+            pickle.dump(pool_attrs_norm, f)
+        with (output_dir / "conditions_pool.pkl").open("wb") as f:
+            pickle.dump(pool_conditions, f)
 
 
 def build_density_graph(trajectories, qdtree: QuadTree, nodes: list) -> Data:
@@ -279,6 +336,18 @@ def run_core_preprocessing(args: argparse.Namespace) -> None:
     ]
     conditions = density_aware_conditions(fixed_trajs, qdtree, nodes, embeddings)
 
+    pool_trajectories = None
+    pool_conditions = None
+    if args.pool_trajectories:
+        logger.info("Loading held-out generation pool from %s", args.pool_trajectories)
+        pool_trajectories = read_trajectories(args.pool_trajectories, with_time=True)
+        fixed_pool_trajs = [
+            resample_trajectory(np.asarray([[pt[0], pt[1]] for pt in traj], dtype=np.float32), args.traj_length)
+            for traj in pool_trajectories
+        ]
+        logger.info("Building density-aware conditional signals for %s held-out trajectories", len(pool_trajectories))
+        pool_conditions = density_aware_conditions(fixed_pool_trajs, qdtree, nodes, embeddings)
+
     with (output_dir / "qdtree.pkl").open("wb") as f:
         pickle.dump(qdtree, f)
     with (output_dir / "nodes.pkl").open("wb") as f:
@@ -294,6 +363,8 @@ def run_core_preprocessing(args: argparse.Namespace) -> None:
         PORTO_BOUNDS,
         traj_length=args.traj_length,
         target_quantile=args.target_quantile,
+        pool_trajectories=pool_trajectories,
+        pool_conditions=pool_conditions,
     )
     logger.info("Saved preprocessing artifacts to %s", output_dir)
 
@@ -307,6 +378,7 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=3000, help="DWGAT training epochs.")
     parser.add_argument("--traj-length", type=int, default=60, help="Fixed trajectory length used by DDPM.")
     parser.add_argument("--target-quantile", type=float, default=20, help="Low-density percentile used as target domain.")
+    parser.add_argument("--pool-trajectories", default=None, help="Optional held-out trajectory file used only for augmentation conditions.")
     parser.add_argument("--save-fig", action="store_true", help="Save a PCA visualization of DWGAT embeddings.")
     run_core_preprocessing(parser.parse_args())
 
