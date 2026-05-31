@@ -74,11 +74,11 @@ Lines beginning with `-` separate trajectories. Coordinates are expected as lati
 
 ## Workflow
 
-FairTraj contains four core stages.
+FairTraj contains three runnable stages.
 
-### 1. Estimate Trajectory Density
+### 1. Estimate Trajectory Density and Build Density-Aware Conditions
 
-Given raw trajectories, estimate point/trajectory density, construct the density-aware graph, train DW-GAT, and prepare DDPM tensors:
+Given raw trajectories, estimate point/trajectory density, construct the density-aware graph, train DW-GAT, build density-aware conditional signals, and prepare DDPM tensors:
 
 ```bash
 python -m fairtraj.preprocessing.density \
@@ -99,19 +99,7 @@ This produces:
 - `trajs.pkl`, `attrs.pkl`, `stats.pkl`: normalized DDPM training data and normalization statistics
 - `source_*_train.pkl`, `target_*_train.pkl`: density-based source/target splits for FairTraj training
 
-### 2. Learn Density-Aware Node Representations with DW-GAT
-
-This stage is executed inside the preprocessing command in Stage 1. The DW-GAT module is not meant to be run directly as a standalone script.
-
-The implementation is in:
-
-```text
-src/fairtraj/models/dwgat.py
-```
-
-During Stage 1, `fairtraj.preprocessing.density` builds `graph_data.pt`, calls DW-GAT training, saves `dwgat.pth`, and uses the learned node embeddings to produce density-aware point-level conditional signals.
-
-### 3. Train Density-Aware DDPM
+### 2. Train Density-Aware DDPM
 
 Train the FairTraj denoising diffusion model with the prepared source/target tensors:
 
@@ -128,7 +116,7 @@ This produces DDPM checkpoints such as:
 outputs/ddpm/models/unet_200.pt
 ```
 
-### 4. Generate Augmented Trajectories
+### 3. Generate Augmented Trajectories
 
 Use a trained DDPM checkpoint and the low-density target conditions to synthesize augmented trajectories:
 
