@@ -50,13 +50,6 @@ geopy
 PyYAML
 ```
 
-Install the local package before running the commands below:
-
-```bash
-pip install -r requirements.txt
-pip install -e .
-```
-
 ## Data Format
 
 The core preprocessing command expects a trajectory text file with one GPS point per line:
@@ -119,8 +112,6 @@ This produces DDPM checkpoints such as:
 outputs/ddpm/models/unet_200.pt
 ```
 
-Training logs are saved to `outputs/ddpm/logs/train_ddpm.log`.
-
 ### 3. Generate Augmented Trajectories
 
 Use a trained DDPM checkpoint and the held-out condition pool to synthesize augmented trajectories:
@@ -136,15 +127,11 @@ python -m fairtraj.generation.generate \
   --sample-temperature 0.02
 ```
 
-During generation, FairTraj samples held-out pool conditions by density with a `WeightedRandomSampler`. The default probability is proportional to `exp(-density / sample_temperature)`, so lower-density trajectories are selected more often for augmentation.
-
 This saves:
 
 ```text
 outputs/augmented/augmented_trajs.pkl
 ```
-
-Generation logs are saved to `outputs/augmented/generate.log`.
 
 ## Configuration
 
