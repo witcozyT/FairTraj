@@ -83,7 +83,6 @@ Given raw trajectories, estimate point/trajectory density, construct the density
 ```bash
 python -m fairtraj.preprocessing.density \
   --trajectories /path/to/trajectories.txt \
-  --pool-trajectories /path/to/heldout_trajectories.txt \
   --output-dir outputs/fairtraj_core \
   --capacity 6000 \
   --search-radius 3000 \
@@ -99,10 +98,9 @@ This produces:
 - `density_conditions.pkl`: trajectory-level density-aware condition sequences
 - `trajs.pkl`, `attrs.pkl`, `stats.pkl`: normalized DDPM training data and normalization statistics
 - `source_*_train.pkl`, `target_*_train.pkl`: density-based source/target splits for FairTraj training
-- `attrs_pool.pkl`, `conditions_pool.pkl`: held-out original trajectories prepared as generation attributes and density-aware conditions
 - `preprocessing.log`: preprocessing and DW-GAT training log
 
-For augmentation, FairTraj uses a held-out pool from the original trajectories as generation conditions. This pool is provided through `--pool-trajectories` and is not part of the DDPM training split. When the pool is provided, `stats.pkl` is fitted over the training and held-out trajectories together, and the pool files are prepared with the same DW-GAT node embeddings and normalization statistics as the training tensors.
+For augmentation, FairTraj uses a held-out pool from the original trajectories as generation conditions. This pool is not part of the DDPM training split and should be prepared separately as `attrs_pool.pkl`, `conditions_pool.pkl`, and the corresponding `stats_pool.pkl`.
 
 ### 2. Train Density-Aware DDPM
 
@@ -130,7 +128,7 @@ Use a trained DDPM checkpoint and the held-out condition pool to synthesize augm
 ```bash
 python -m fairtraj.generation.generate \
   --config configs/fairtraj_core.yaml \
-  --stats outputs/fairtraj_core/stats.pkl \
+  --stats outputs/fairtraj_core/stats_pool.pkl \
   --attrs outputs/fairtraj_core/attrs_pool.pkl \
   --conditions outputs/fairtraj_core/conditions_pool.pkl \
   --checkpoint outputs/ddpm/models/unet_200.pt \

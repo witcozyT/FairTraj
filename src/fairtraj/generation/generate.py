@@ -108,7 +108,7 @@ def generate(args):
 def main():
     parser = argparse.ArgumentParser(description="Generate FairTraj augmented trajectories.")
     parser.add_argument("--config", default="configs/fairtraj_core.yaml")
-    parser.add_argument("--stats", default="outputs/fairtraj_core/stats.pkl")
+    parser.add_argument("--stats", default="outputs/fairtraj_core/stats_pool.pkl")
     parser.add_argument("--attrs", default="outputs/fairtraj_core/attrs_pool.pkl")
     parser.add_argument("--conditions", default="outputs/fairtraj_core/conditions_pool.pkl")
     parser.add_argument("--checkpoint", required=True)
