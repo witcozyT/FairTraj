@@ -6,6 +6,10 @@ from torch_geometric.nn import GATConv
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
+from fairtraj.utils.logger import get_logger
+
+LOGGER = get_logger(__name__)
+
 
 class DensityAwareGATLayer(nn.Module):
     def __init__(self, in_channels, out_channels, heads=2, dropout=0.1):
@@ -68,7 +72,8 @@ class DensityAwareGAT(nn.Module):
 
         return hidden, pred
 
-def train(data, save_path=None, epochs=3000, lr=0.002, log_every=100):
+def train(data, save_path=None, epochs=3000, lr=0.002, log_every=100, logger=None):
+    logger = logger or LOGGER
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     data = data.to(device)
     density = data.x[:, 0:1]
@@ -85,7 +90,7 @@ def train(data, save_path=None, epochs=3000, lr=0.002, log_every=100):
         loss.backward()
         optimizer.step()
         if log_every and (epoch + 1) % log_every == 0:
-            print(f"Epoch {epoch}, Loss {loss.item():.4f}")
+            logger.info("DW-GAT epoch %s | loss %.4f", epoch + 1, loss.item())
 
     if save_path is not None:
         torch.save(model.state_dict(), save_path)

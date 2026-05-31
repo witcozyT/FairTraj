@@ -98,6 +98,14 @@ This produces:
 - `density_conditions.pkl`: trajectory-level density-aware condition sequences
 - `trajs.pkl`, `attrs.pkl`, `stats.pkl`: normalized DDPM training data and normalization statistics
 - `source_*_train.pkl`, `target_*_train.pkl`: density-based source/target splits for FairTraj training
+- `preprocessing.log`: preprocessing and DW-GAT training log
+
+For augmentation, FairTraj uses a held-out pool from the original trajectories as generation conditions. This pool is not part of the DDPM training split:
+
+- `attrs_pool.pkl`: trajectory-level attributes of held-out original trajectories
+- `conditions_pool.pkl`: point-level density-aware conditions of the same held-out trajectories
+
+These files should be prepared with the same normalization statistics and DW-GAT node embeddings used in Stage 1.
 
 ### 2. Train Density-Aware DDPM
 
@@ -116,16 +124,18 @@ This produces DDPM checkpoints such as:
 outputs/ddpm/models/unet_200.pt
 ```
 
+Training logs are saved to `outputs/ddpm/logs/train_ddpm.log`.
+
 ### 3. Generate Augmented Trajectories
 
-Use a trained DDPM checkpoint and the low-density target conditions to synthesize augmented trajectories:
+Use a trained DDPM checkpoint and the held-out condition pool to synthesize augmented trajectories:
 
 ```bash
 python -m fairtraj.generation.generate \
   --config configs/fairtraj_core.yaml \
   --data-dir outputs/fairtraj_core \
-  --attrs outputs/fairtraj_core/target_attrs_train.pkl \
-  --conditions outputs/fairtraj_core/target_conditions_train.pkl \
+  --attrs outputs/fairtraj_core/attrs_pool.pkl \
+  --conditions outputs/fairtraj_core/conditions_pool.pkl \
   --checkpoint outputs/ddpm/models/unet_200.pt \
   --output-dir outputs/augmented
 ```
@@ -135,6 +145,8 @@ This saves:
 ```text
 outputs/augmented/augmented_trajs.pkl
 ```
+
+Generation logs are saved to `outputs/augmented/generate.log`.
 
 ## Configuration
 

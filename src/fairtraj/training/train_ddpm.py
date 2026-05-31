@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader, Sampler, TensorDataset
 
 from fairtraj.models.ddpm import Guide_UNet
 from fairtraj.utils.ema import EMAHelper
+from fairtraj.utils.logger import get_logger
 
 
 class GradualDomainSampler(Sampler):
@@ -122,12 +123,16 @@ def train(args):
     output_dir = Path(args.output_dir)
     model_dir = output_dir / "models"
     result_dir = output_dir / "results"
+    log_dir = output_dir / "logs"
     model_dir.mkdir(parents=True, exist_ok=True)
     result_dir.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    logger = get_logger(__name__, log_dir / "train_ddpm.log")
 
     config = load_config(args.config)
     device = torch.device(args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu"))
     unet = Guide_UNet(config).to(device)
+    logger.info("Training DDPM on device %s", device)
 
     source_traj = torch.from_numpy(np.asarray(load_pickle(data_dir / "source_trajs_train.pkl"))).float()
     source_attr = torch.from_numpy(np.asarray(load_pickle(data_dir / "source_attrs_train.pkl"))).float()
@@ -191,7 +196,7 @@ def train(args):
             epoch_losses.append(loss.item())
 
         losses.append(float(np.mean(epoch_losses)))
-        print("Epoch {} | loss {:.6f} | {}".format(epoch, losses[-1], datetime.datetime.now().isoformat(timespec="seconds")))
+        logger.info("DDPM epoch %s | loss %.6f | %s", epoch, losses[-1], datetime.datetime.now().isoformat(timespec="seconds"))
         if epoch % args.save_every == 0 or epoch == config.training.n_epochs:
             torch.save(unet.state_dict(), model_dir / "unet_{}.pt".format(epoch))
 
@@ -205,6 +210,7 @@ def train(args):
     plt.tight_layout()
     plt.savefig(result_dir / "loss.png")
     plt.close()
+    logger.info("Saved DDPM checkpoints to %s", model_dir)
 
 
 def main():

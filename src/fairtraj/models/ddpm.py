@@ -368,23 +368,19 @@ class Model(nn.Module):
 
         # downsampling
         hs = [self.conv_in(x)] # [batch size, ch, seq_len]
-        # print(hs[-1].shape)
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):
                 h = self.down[i_level].block[2 * i_block](hs[-1], temb)
                 h = self.down[i_level].block[2 * i_block + 1](h, den_cond)
-                # print(i_level, i_block, h.shape)
                 hs.append(h)
             if i_level != self.num_resolutions - 1:
                 hs.append(self.down[i_level].downsample(hs[-1]))
 
         # middle
-        # print(len(hs), hs[-1].shape)
         h = hs[-1]  # [10, 256, 4, 4]
         h = self.mid.block_1(h, temb)
         h = self.mid.attn(h, den_cond)
         h = self.mid.block_2(h, temb)
-        # print(h.shape)
 
         # upsampling
         for i_level in reversed(range(self.num_resolutions)):
@@ -394,7 +390,6 @@ class Model(nn.Module):
                     h = torch.nn.functional.pad(h, (0, ht.size(-1) - h.size(-1)))
                 h = self.up[i_level].block[2 * i_block](torch.cat([h, ht], dim=1), temb)
                 h = self.up[i_level].block[2 * i_block + 1](h, den_cond)
-                # print(i_level, i_block, h.shape)
             if i_level != 0:
                 h = self.up[i_level].upsample(h)
 

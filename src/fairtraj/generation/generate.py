@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from fairtraj.models.ddpm import Guide_UNet
 from fairtraj.training.train_ddpm import load_config
 from fairtraj.utils.utils import p_xt, resample_trajectory
+from fairtraj.utils.logger import get_logger
 
 
 def load_pickle(path):
@@ -22,8 +23,10 @@ def generate(args):
     data_dir = Path(args.data_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    logger = get_logger(__name__, output_dir / "generate.log")
     config = load_config(args.config)
     device = torch.device(args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu"))
+    logger.info("Generating trajectories on device %s", device)
 
     attrs = torch.from_numpy(np.asarray(load_pickle(args.attrs))).float()
     conditions = torch.from_numpy(np.asarray(load_pickle(args.conditions))).float()
@@ -69,15 +72,15 @@ def generate(args):
     output_path = output_dir / args.output_name
     with output_path.open("wb") as f:
         pickle.dump(generated, f)
-    print("Saved {} generated trajectories to {}".format(len(generated), output_path))
+    logger.info("Saved %s generated trajectories to %s", len(generated), output_path)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Generate FairTraj augmented trajectories.")
     parser.add_argument("--config", default="configs/fairtraj_core.yaml")
     parser.add_argument("--data-dir", default="outputs/fairtraj_core")
-    parser.add_argument("--attrs", default="outputs/fairtraj_core/target_attrs_train.pkl")
-    parser.add_argument("--conditions", default="outputs/fairtraj_core/target_conditions_train.pkl")
+    parser.add_argument("--attrs", default="outputs/fairtraj_core/attrs_pool.pkl")
+    parser.add_argument("--conditions", default="outputs/fairtraj_core/conditions_pool.pkl")
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--output-dir", default="outputs/augmented")
     parser.add_argument("--output-name", default="augmented_trajs.pkl")

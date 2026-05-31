@@ -27,6 +27,7 @@ from tqdm import tqdm
 from fairtraj.models.dwgat import eval as eval_dwgat
 from fairtraj.models.dwgat import train as train_dwgat
 from fairtraj.utils.quadtree import QuadTree
+from fairtraj.utils.logger import get_logger
 from fairtraj.utils.utils import divide_grids, resample_trajectory
 
 
@@ -259,13 +260,19 @@ def density_aware_conditions(trajectories, qdtree: QuadTree, nodes: list, embedd
 def run_core_preprocessing(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    logger = get_logger(__name__, output_dir / "preprocessing.log")
+    logger.info("Loading trajectories from %s", args.trajectories)
     trajectories = read_trajectories(args.trajectories, with_time=True)
     config = DensityConfig(bounds=PORTO_BOUNDS, quadtree_capacity=args.capacity, search_radius_m=args.search_radius)
 
+    logger.info("Estimating density with %s trajectories", len(trajectories))
     qdtree, nodes = restricted_kernel_density_estimation(trajectories, config)
+    logger.info("Constructing density-aware graph with %s quadtree nodes", len(nodes))
     graph_data = build_density_graph(trajectories, qdtree, nodes)
-    model = train_dwgat(graph_data, save_path=output_dir / "dwgat.pth", epochs=args.epochs)
+    logger.info("Training DW-GAT for %s epochs", args.epochs)
+    model = train_dwgat(graph_data, save_path=output_dir / "dwgat.pth", epochs=args.epochs, logger=logger)
     embeddings = eval_dwgat(model, graph_data, save_path=output_dir / "dwgat_embeddings.png", save_fig=args.save_fig)
+    logger.info("Building density-aware conditional signals")
     fixed_trajs = [
         resample_trajectory(np.asarray([[pt[0], pt[1]] for pt in traj], dtype=np.float32), args.traj_length)
         for traj in trajectories
@@ -288,6 +295,7 @@ def run_core_preprocessing(args: argparse.Namespace) -> None:
         traj_length=args.traj_length,
         target_quantile=args.target_quantile,
     )
+    logger.info("Saved preprocessing artifacts to %s", output_dir)
 
 
 def main() -> None:
