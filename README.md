@@ -33,7 +33,7 @@ You can install the required packages in your python environment by:
 
 ```text
 Python == 3.8
-torch>=1.7
+torch
 pandas
 numpy
 matplotlib

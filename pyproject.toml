@@ -13,7 +13,7 @@ dependencies = [
   "pandas",
   "scipy",
   "scikit-learn",
-  "torch>=1.7",
+  "torch",
   "torch-geometric",
   "matplotlib",
   "tqdm",
